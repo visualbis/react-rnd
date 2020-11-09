@@ -1,6 +1,6 @@
 import * as React from "react";
 import { DraggableEventHandler, default as DraggableRoot } from "react-draggable";
-import { Resizable, ResizeDirection } from "re-resizable";
+import { Enable, Resizable, ResizeDirection } from "re-resizable";
 
 // FIXME: https://github.com/mzabriskie/react-draggable/issues/381
 //         I can not find `scale` too...
@@ -31,10 +31,10 @@ export type RndDragEvent =
   | TouchEvent;
 
 export type RndResizeStartCallback = (
-  e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+  e: React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement>,
   dir: ResizeDirection,
-  elementRef: HTMLDivElement,
-) => void;
+  elementRef: HTMLElement,
+) => void | boolean;
 
 export type ResizableDelta = {
   width: number;
@@ -44,7 +44,7 @@ export type ResizableDelta = {
 export type RndResizeCallback = (
   e: MouseEvent | TouchEvent,
   dir: ResizeDirection,
-  elementRef: HTMLDivElement,
+  elementRef: HTMLElement,
   delta: ResizableDelta,
   position: Position,
 ) => void;
@@ -71,16 +71,18 @@ type MaxSize = {
   maxHeight: number | string;
 };
 
-export type ResizeEnable = {
-  bottom?: boolean;
-  bottomLeft?: boolean;
-  bottomRight?: boolean;
-  left?: boolean;
-  right?: boolean;
-  top?: boolean;
-  topLeft?: boolean;
-  topRight?: boolean;
-};
+export type ResizeEnable =
+  | {
+      bottom?: boolean;
+      bottomLeft?: boolean;
+      bottomRight?: boolean;
+      left?: boolean;
+      right?: boolean;
+      top?: boolean;
+      topLeft?: boolean;
+      topRight?: boolean;
+    }
+  | boolean;
 
 export type HandleClasses = {
   bottom?: string;
@@ -157,6 +159,7 @@ export interface Props {
   disableDragging?: boolean;
   cancel?: string;
   enableUserSelectHack?: boolean;
+  allowAnyClick?: boolean;
   scale?: number;
   [key: string]: any;
 }
@@ -169,6 +172,17 @@ const resizableStyle = {
   top: 0,
   left: 0,
 };
+
+const getEnableResizingByFlag = (flag: boolean): Enable => ({
+  bottom: flag,
+  bottomLeft: flag,
+  bottomRight: flag,
+  left: flag,
+  right: flag,
+  top: flag,
+  topLeft: flag,
+  topRight: flag,
+});
 
 interface DefaultProps {
   maxWidth: number;
@@ -199,6 +213,7 @@ export class Rnd extends React.PureComponent<Props, State> {
   resizing = false;
   resizingPosition = { x: 0, y: 0 };
   offsetFromParent = { left: 0, top: 0 };
+  resizableElement: { current: HTMLElement | null } = { current: null };
 
   constructor(props: Props) {
     super(props);
@@ -258,7 +273,7 @@ export class Rnd extends React.PureComponent<Props, State> {
     return { maxWidth, maxHeight };
   }
 
-  getSelfElement(): HTMLDivElement | null {
+  getSelfElement(): HTMLElement | null {
     return this.resizable && this.resizable.resizable;
   }
 
@@ -358,9 +373,9 @@ export class Rnd extends React.PureComponent<Props, State> {
   }
 
   onResizeStart(
-    e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+    e: React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement>,
     dir: ResizeDirection,
-    elementRef: HTMLDivElement,
+    elementRef: HTMLElement,
   ) {
     e.stopPropagation();
     this.resizing = true;
@@ -458,18 +473,28 @@ export class Rnd extends React.PureComponent<Props, State> {
   onResize(
     e: MouseEvent | TouchEvent,
     direction: ResizeDirection,
-    elementRef: HTMLDivElement,
+    elementRef: HTMLElement,
     delta: { height: number; width: number },
   ) {
-    if (/left/i.test(direction)) {
-      const x = this.state.original.x - delta.width;
-      // INFO: Apply x position by resize to draggable.
-      this.draggable.setState({ x });
+    // INFO: Apply x and y position adjustments caused by resizing to draggable
+    const newPos = { x: this.state.original.x, y: this.state.original.y };
+    const left = -delta.width;
+    const top = -delta.height;
+    const directions = ["top", "left", "topLeft", "bottomLeft", "topRight"];
+
+    if (directions.indexOf(direction) !== -1) {
+      if (direction === "bottomLeft") {
+        newPos.x += left;
+      } else if (direction === "topRight") {
+        newPos.y += top;
+      } else {
+        newPos.x += left;
+        newPos.y += top;
+      }
     }
-    if (/top/i.test(direction)) {
-      const y = this.state.original.y - delta.height;
-      // INFO: Apply x position by resize to draggable.
-      this.draggable.setState({ y });
+
+    if (newPos.x !== this.draggable.state.x || newPos.y !== this.draggable.state.y) {
+      this.draggable.setState(newPos);
     }
 
     this.updateOffsetFromParent();
@@ -488,7 +513,7 @@ export class Rnd extends React.PureComponent<Props, State> {
   onResizeStop(
     e: MouseEvent | TouchEvent,
     direction: ResizeDirection,
-    elementRef: HTMLDivElement,
+    elementRef: HTMLElement,
     delta: { height: number; width: number },
   ) {
     this.resizing = false;
@@ -537,6 +562,7 @@ export class Rnd extends React.PureComponent<Props, State> {
   refResizable = (c: Resizable | null) => {
     if (!c) return;
     this.resizable = c;
+    this.resizableElement.current = c.resizable;
   };
 
   render() {
@@ -567,6 +593,7 @@ export class Rnd extends React.PureComponent<Props, State> {
       resizeHandleWrapperClass,
       resizeHandleWrapperStyle,
       scale,
+      allowAnyClick,
       ...resizableProps
     } = this.props;
     const defaultValue = this.props.default ? { ...this.props.default } : undefined;
@@ -608,13 +635,15 @@ export class Rnd extends React.PureComponent<Props, State> {
         enableUserSelectHack={enableUserSelectHack}
         cancel={cancel}
         scale={scale}
+        allowAnyClick={allowAnyClick}
+        nodeRef={this.resizableElement}
       >
         <Resizable
           {...resizableProps}
           ref={this.refResizable}
           defaultSize={defaultValue}
           size={this.props.size}
-          enable={enableResizing}
+          enable={typeof enableResizing === "boolean" ? getEnableResizingByFlag(enableResizing) : enableResizing}
           onResizeStart={this.onResizeStart}
           onResize={this.onResize}
           onResizeStop={this.onResizeStop}
