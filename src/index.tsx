@@ -334,7 +334,7 @@ export class Rnd extends React.PureComponent<Props, State> {
     } else {
       boundary = document.querySelector(this.props.bounds);
     }
-    if (!(boundary instanceof HTMLElement) || !(parent instanceof HTMLElement)) {
+    if ((!(boundary instanceof HTMLElement) && !(boundary instanceof SVGElement)) || !(parent instanceof HTMLElement)) {
       return;
     }
     const boundaryRect = boundary.getBoundingClientRect();
@@ -351,8 +351,8 @@ export class Rnd extends React.PureComponent<Props, State> {
     this.setState({
       bounds: {
         top: top - offset.top,
-        right: left + (boundary.offsetWidth - this.resizable.size.width) - offset.left / scale,
-        bottom: top + (boundary.offsetHeight - this.resizable.size.height) - offset.top,
+        right: left + (boundaryRect.width - this.resizable.size.width) - offset.left / scale,
+        bottom: top + (boundaryRect.height - this.resizable.size.height) - offset.top,
         left: left - offset.left / scale,
       },
     });
