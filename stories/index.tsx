@@ -35,6 +35,10 @@ import Cancel from "./cancel/cancel";
 
 import ResizeHandleComponent from "./customization/resizeHandleComponent";
 
+import DragAxisX from "./dragAxis/dragAxisX";
+import DragAxisY from "./dragAxis/dragAxisY";
+import DragAxisNone from "./dragAxis/dragAxisNone";
+
 import GridResize from "./grid/resize";
 import GridDrag from "./grid/drag";
 import GridBoth from "./grid/both";
@@ -79,6 +83,11 @@ storiesOf("callbacks", module).add("callback", () => <Callbacks />);
 storiesOf("cancel", module).add("cancel", () => <Cancel />);
 
 storiesOf("customization", module).add("resizeHandleComponent", () => <ResizeHandleComponent />);
+
+storiesOf("dragAxis", module)
+  .add("dragAxisX", () => <DragAxisX />)
+  .add("dragAxisY", () => <DragAxisY />)
+  .add("dragAxisNone", () => <DragAxisNone />);
 
 storiesOf("grid", module)
   .add("resize", () => <GridResize />)
