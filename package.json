@@ -99,7 +99,7 @@
     "fixture": "./fixture.html"
   },
   "dependencies": {
-    "re-resizable": "6.9.1",
+    "re-resizable": "6.9.11",
     "react-draggable": "4.4.3",
     "tslib": "2.3.0"
   }
